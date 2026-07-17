@@ -1,4 +1,5 @@
-import { createFileRoute, useServerFn } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { generateSuggestion } from "@/lib/gm-copilot.functions";
