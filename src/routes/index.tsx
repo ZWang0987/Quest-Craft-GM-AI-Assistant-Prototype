@@ -1,3 +1,9 @@
+/**
+ * Home page: GM describes a live-table situation and gets AI suggestions.
+ *
+ * Prompt tuning lives in `@/lib/gm-copilot.functions.ts` (SYSTEM_PROMPT).
+ * This file owns the form, demo scenario, and rendering of the model's Markdown reply.
+ */
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
@@ -26,9 +32,17 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
+/**
+ * Demo scenario for "Load demo scenario". Should mirror what a real GM would type:
+ * context, player choice, and what they need help with.
+ *
+ * Update this when you add Quest Craft modules, settings, or example age bands.
+ * It is not sent to the model until the user clicks Generate.
+ */
 const EXAMPLE = `The students defeated the Stormbristle Boar. Instead of accepting Artemis' blessing or treating the boar as sacred, they want to sell the tusks at the market, divide up the meat, and keep the profits. I need 2–3 possible story outcomes that respect their choice, create an interesting consequence, and keep the quest moving for ages 9–12.`;
 
 function Index() {
+  // Client hook for the server function defined in gm-copilot.functions.ts
   const generate = useServerFn(generateSuggestion);
   const [situation, setSituation] = useState("");
   const [output, setOutput] = useState("");
@@ -42,6 +56,7 @@ function Index() {
     setError(null);
     setOutput("");
     try {
+      // `data.situation` must match the Zod schema on generateSuggestion
       const res = await generate({ data: { situation: situation.trim() } });
       setOutput(res.text);
     } catch (err) {
@@ -98,6 +113,7 @@ function Index() {
           </div>
         )}
 
+        {/* Model output is Markdown; headings must stay in sync with SYSTEM_PROMPT sections */}
         {output && (
           <section className="mt-8 rounded-lg border border-border bg-card p-6">
             <h2 className="mb-3 text-lg font-semibold">Suggestions</h2>

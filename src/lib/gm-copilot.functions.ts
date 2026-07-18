@@ -1,8 +1,27 @@
+/**
+ * Server-side AI endpoint for the GM Co-Pilot.
+ *
+ * This is the main place to tune behavior: edit SYSTEM_PROMPT for tone, output
+ * format, guardrails, and age range. The user-typed "situation" from the UI is
+ * appended separately in the handler (see USER_PROMPT_PREFIX below).
+ */
 import { createServerFn } from "@tanstack/react-start";
 import { generateText } from "ai";
 import { z } from "zod";
 import { createLovableAiGatewayProvider } from "./ai-gateway.server";
 
+/**
+ * Core instructions sent on every request as the model's "system" message.
+ *
+ * Edit this when you want to change:
+ * - What sections appear in the response (the ## headings below)
+ * - How formal/casual the GM voice is
+ * - Age band, safety rules, or word-count limits
+ * - The reminder that the human GM stays in charge
+ *
+ * The model is asked to follow this structure literally, so keep headings stable
+ * if the UI expects Markdown sections (ReactMarkdown renders the result as-is).
+ */
 const SYSTEM_PROMPT = `You are a Game Master (GM) Co-Pilot for Quest Craft, a tabletop role-playing game used by educators, librarians, and after-school staff running human-centered adventures for youth (ages 8–14).
 
 Your role is to SUPPORT the human GM, never replace them. The GM always decides whether to accept, revise, or ignore your suggestions.
@@ -33,6 +52,15 @@ GUARDRAILS:
 - Never ask for or store private student information (real names, schools, personal details).
 - Keep the entire response short enough to be read at the table (aim for under ~200 words).`;
 
+/** Prefix for the user message; only the situation text from the form is appended. */
+const USER_PROMPT_PREFIX = "GM situation:\n\n";
+
+/**
+ * TanStack Start server function: POST /api-ish endpoint invoked from the home page.
+ *
+ * Flow: validate input → call Lovable AI gateway → return Markdown text.
+ * To swap models, change the gateway(...) model id below.
+ */
 export const generateSuggestion = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => z.object({ situation: z.string().min(1).max(4000) }).parse(input))
   .handler(async ({ data }) => {
@@ -43,7 +71,7 @@ export const generateSuggestion = createServerFn({ method: "POST" })
     const { text } = await generateText({
       model: gateway("google/gemini-3.5-flash"),
       system: SYSTEM_PROMPT,
-      prompt: `GM situation:\n\n${data.situation}`,
+      prompt: `${USER_PROMPT_PREFIX}${data.situation}`,
     });
 
     return { text };
