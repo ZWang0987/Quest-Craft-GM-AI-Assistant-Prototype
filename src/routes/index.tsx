@@ -1,14 +1,21 @@
 /**
- * Home page: GM describes a live-table situation and gets AI suggestions.
+ * Home page: GM Co-Pilot session UI.
  *
- * Prompt tuning lives in `@/lib/gm-copilot.functions.ts` (SYSTEM_PROMPT).
- * This file owns the form, demo scenario, and rendering of the model's Markdown reply.
+ * Session flow (state machine):
+ *   describe → suggestions → (optional) focused
+ *
+ * - Prompt tuning: `@/lib/gm-copilot.functions.ts` (SYSTEM_PROMPT)
+ * - Option parsing: `@/lib/gm-copilot.parse.ts` (Select buttons)
+ * - This file: form, demo scenario, session state, Markdown rendering
  */
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
-import { generateSuggestion } from "@/lib/gm-copilot.functions";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { type CopilotAction, generateSuggestion } from "@/lib/gm-copilot.functions";
+import { parseStoryOptions } from "@/lib/gm-copilot.parse";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -41,29 +48,97 @@ export const Route = createFileRoute("/")({
  */
 const EXAMPLE = `The students defeated the Stormbristle Boar. Instead of accepting Artemis' blessing or treating the boar as sacred, they want to sell the tusks at the market, divide up the meat, and keep the profits. I need 2–3 possible story outcomes that respect their choice, create an interesting consequence, and keep the quest moving for ages 9–12.`;
 
+/**
+ * Session phases shown in the step indicator and used to decide which UI to render:
+ *
+ * - describe     — GM enters situation; no suggestions yet
+ * - suggestions  — full multi-option response; Regenerate / Revise / Select available
+ * - focused      — drill-down for one chosen option; "Back to all options" returns
+ */
+type SessionView = "describe" | "suggestions" | "focused";
+
 function Index() {
-  // Client hook for the server function defined in gm-copilot.functions.ts
   const generate = useServerFn(generateSuggestion);
+
+  // Original table situation — kept editable and sent on every server call.
   const [situation, setSituation] = useState("");
-  const [output, setOutput] = useState("");
+  // Latest full suggestions (multi-option Markdown from initial / regenerate / revise).
+  const [suggestions, setSuggestions] = useState("");
+  // Drill-down response after the GM clicks Select on one story option.
+  const [focusedOutput, setFocusedOutput] = useState("");
+  const [selectedOptionLabel, setSelectedOptionLabel] = useState<string | null>(null);
+  const [view, setView] = useState<SessionView>("describe");
+  // Revise is a two-step UX: toggle form, then submit feedback to the model.
+  const [showReviseForm, setShowReviseForm] = useState(false);
+  const [revisionNotes, setRevisionNotes] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  const storyOptions = parseStoryOptions(suggestions);
+  const activeMarkdown = view === "focused" ? focusedOutput : suggestions;
+
+  /**
+   * Single entry point for all co-pilot actions. Routes to the server with the
+   * right `action` payload, then updates session state for the next UI step.
+   */
+  async function runAction(
+    action: CopilotAction,
+    extras?: { revisionNotes?: string; selectedOption?: string },
+  ) {
     if (!situation.trim() || loading) return;
+
     setLoading(true);
     setError(null);
-    setOutput("");
+
     try {
-      // `data.situation` must match the Zod schema on generateSuggestion
-      const res = await generate({ data: { situation: situation.trim() } });
-      setOutput(res.text);
+      const res = await generate({
+        data: {
+          action,
+          situation: situation.trim(),
+          // Follow-up actions always include the last full suggestions blob.
+          previousOutput: action === "initial" ? undefined : suggestions,
+          revisionNotes: extras?.revisionNotes,
+          selectedOption: extras?.selectedOption,
+        },
+      });
+
+      if (action === "focus") {
+        // Keep suggestions in state so "Back to all options" can restore them.
+        setFocusedOutput(res.text);
+        setSelectedOptionLabel(extras?.selectedOption ?? null);
+        setView("focused");
+        setShowReviseForm(false);
+      } else {
+        setSuggestions(res.text);
+        setFocusedOutput("");
+        setSelectedOptionLabel(null);
+        setView("suggestions");
+        if (action === "revise" || action === "regenerate") {
+          setRevisionNotes("");
+          setShowReviseForm(false);
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
       setLoading(false);
     }
+  }
+
+  async function onDescribeSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    await runAction("initial");
+  }
+
+  function resetSession() {
+    // Clears follow-up state but leaves the situation textarea as-is.
+    setSuggestions("");
+    setFocusedOutput("");
+    setSelectedOptionLabel(null);
+    setView("describe");
+    setShowReviseForm(false);
+    setRevisionNotes("");
+    setError(null);
   }
 
   return (
@@ -72,38 +147,50 @@ function Index() {
         <header className="mb-8">
           <h1 className="text-3xl font-bold tracking-tight">Quest Craft GM Co-Pilot</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Stuck on an unexpected player choice? Describe the situation and get quick,
-            table-ready suggestions. You always decide whether to accept, revise, or ignore.
+            Describe your table situation, review suggestions, then regenerate, revise, or
+            develop one story path further.
           </p>
         </header>
 
-        <form onSubmit={onSubmit} className="space-y-3">
+        <section className="mb-6 rounded-lg border border-border bg-card p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-medium">
+              {view === "describe" && "Step 1 — Describe the situation"}
+              {view === "suggestions" && "Step 2 — Review suggestions"}
+              {view === "focused" && "Step 3 — Develop one path"}
+            </p>
+            {view !== "describe" && (
+              <Button type="button" variant="ghost" size="sm" onClick={resetSession}>
+                New situation
+              </Button>
+            )}
+          </div>
+        </section>
+
+        <form onSubmit={onDescribeSubmit} className="space-y-3">
           <label htmlFor="situation" className="block text-sm font-medium">
             GM situation
           </label>
-          <textarea
+          <Textarea
             id="situation"
             value={situation}
             onChange={(e) => setSituation(e.target.value)}
             placeholder="Describe what just happened at the table…"
             rows={7}
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+            disabled={loading}
           />
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="submit"
-              disabled={loading || !situation.trim()}
-              className="inline-flex items-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-            >
-              {loading ? "Generating…" : "Generate"}
-            </button>
-            <button
+            <Button type="submit" disabled={loading || !situation.trim()}>
+              {loading && view === "describe" ? "Generating…" : "Generate suggestions"}
+            </Button>
+            <Button
               type="button"
+              variant="outline"
               onClick={() => setSituation(EXAMPLE)}
-              className="inline-flex items-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent"
+              disabled={loading}
             >
               Load demo scenario
-            </button>
+            </Button>
           </div>
         </form>
 
@@ -113,13 +200,133 @@ function Index() {
           </div>
         )}
 
-        {/* Model output is Markdown; headings must stay in sync with SYSTEM_PROMPT sections */}
-        {output && (
-          <section className="mt-8 rounded-lg border border-border bg-card p-6">
-            <h2 className="mb-3 text-lg font-semibold">Suggestions</h2>
-            <div className="prose prose-sm max-w-none dark:prose-invert prose-headings:mt-4 prose-headings:mb-2 prose-p:my-2 prose-ul:my-2 prose-blockquote:my-2">
-              <ReactMarkdown>{output}</ReactMarkdown>
+        {activeMarkdown && (
+          <section className="mt-8 space-y-4 rounded-lg border border-border bg-card p-6">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold">
+                  {view === "focused" ? "Focused path" : "Suggestions"}
+                </h2>
+                {view === "focused" && selectedOptionLabel && (
+                  <p className="mt-1 text-sm text-muted-foreground">{selectedOptionLabel}</p>
+                )}
+              </div>
+
+              {/* Regenerate / Revise only apply to the multi-option suggestions view. */}
+              {view === "suggestions" && (
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={loading}
+                    onClick={() => runAction("regenerate")}
+                  >
+                    {loading ? "Working…" : "Regenerate"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={loading}
+                    onClick={() => setShowReviseForm((open) => !open)}
+                  >
+                    Revise
+                  </Button>
+                </div>
+              )}
+
+              {view === "focused" && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={loading}
+                  onClick={() => setView("suggestions")}
+                >
+                  Back to all options
+                </Button>
+              )}
             </div>
+
+            {/* Model output is Markdown; section headings must stay in sync with SYSTEM_PROMPT. */}
+            <div className="prose prose-sm max-w-none dark:prose-invert prose-headings:mt-4 prose-headings:mb-2 prose-p:my-2 prose-ul:my-2 prose-blockquote:my-2">
+              <ReactMarkdown>{activeMarkdown}</ReactMarkdown>
+            </div>
+
+            {/* Parsed from suggestions Markdown — one Select button per story outcome. */}
+            {view === "suggestions" && storyOptions.length > 0 && (
+              <div className="space-y-3 border-t border-border pt-4">
+                <p className="text-sm font-medium">Develop one path further</p>
+                <div className="flex flex-col gap-2">
+                  {storyOptions.map((option) => (
+                    <div
+                      key={option.number}
+                      className="flex flex-col gap-2 rounded-md border border-border bg-background p-3 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium">{option.label}</p>
+                        <p className="text-sm text-muted-foreground">{option.description}</p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        className="shrink-0"
+                        disabled={loading}
+                        onClick={() =>
+                          runAction("focus", {
+                            selectedOption: `${option.label}: ${option.description}`,
+                          })
+                        }
+                      >
+                        Select
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Inline revision form — toggled by Revise, submitted as action "revise". */}
+            {view === "suggestions" && showReviseForm && (
+              <form
+                className="space-y-3 border-t border-border pt-4"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!revisionNotes.trim()) return;
+                  void runAction("revise", { revisionNotes: revisionNotes.trim() });
+                }}
+              >
+                <label htmlFor="revision" className="block text-sm font-medium">
+                  What would you like changed?
+                </label>
+                <Textarea
+                  id="revision"
+                  value={revisionNotes}
+                  onChange={(e) => setRevisionNotes(e.target.value)}
+                  placeholder="e.g. Make option 2 less punitive, keep the market scene moving, tone down Artemis' anger…"
+                  rows={4}
+                  disabled={loading}
+                />
+                <div className="flex flex-wrap gap-2">
+                  <Button type="submit" disabled={loading || !revisionNotes.trim()}>
+                    {loading ? "Revising…" : "Submit revision"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    disabled={loading}
+                    onClick={() => {
+                      setShowReviseForm(false);
+                      setRevisionNotes("");
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            )}
           </section>
         )}
       </div>

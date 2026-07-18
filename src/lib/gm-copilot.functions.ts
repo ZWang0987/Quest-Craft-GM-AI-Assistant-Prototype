@@ -3,7 +3,7 @@
  *
  * This is the main place to tune behavior: edit SYSTEM_PROMPT for tone, output
  * format, guardrails, and age range. The user-typed "situation" from the UI is
- * appended separately in the handler (see USER_PROMPT_PREFIX below).
+ * appended separately in the handler (see buildUserPrompt below).
  */
 import { createServerFn } from "@tanstack/react-start";
 import { generateText } from "ai";
@@ -24,7 +24,7 @@ import { createLovableAiGatewayProvider } from "./ai-gateway.server";
  */
 const SYSTEM_PROMPT = `You are a Game Master (GM) Co-Pilot for Quest Craft, a tabletop role-playing game used by educators, librarians, and after-school staff running human-centered adventures for youth (ages 8–14).
 
-Your role is to SUPPORT the human GM, never replace them. The GM always decides whether to accept, revise, or ignore your suggestions.
+Your role is to SUPPORT the human GM, never replace them. The GM always decides what to use at the table.
 
 When the GM describes an unexpected player choice or a moment they're stuck on, respond with a concise, live-session-ready answer in this exact Markdown structure:
 
@@ -43,7 +43,7 @@ One concrete, interesting consequence that will show up later in the campaign �
 1–3 quick bullets: age-appropriate framing, cultural sensitivity for the mythology/setting, and anything the GM should watch for.
 
 ## Reminder
-You (the GM) can accept, revise, or ignore any of this. You know your players best.
+Use what helps, skip what doesn't — you know your players best.
 
 GUARDRAILS:
 - Keep content age-appropriate (ages 8–14): no graphic violence, gore, romance, or scary imagery beyond mild adventure tension.
@@ -52,8 +52,99 @@ GUARDRAILS:
 - Never ask for or store private student information (real names, schools, personal details).
 - Keep the entire response short enough to be read at the table (aim for under ~200 words).`;
 
-/** Prefix for the user message; only the situation text from the form is appended. */
-const USER_PROMPT_PREFIX = "GM situation:\n\n";
+/**
+ * Extra system instructions when the GM picks one story outcome via "Select".
+ * Uses a different Markdown shape (no multi-option list) so the UI can show a
+ * drill-down view without confusing it with the main suggestions screen.
+ */
+const FOCUS_SYSTEM_ADDENDUM = `
+
+The GM selected one story outcome to develop further. Respond in this exact Markdown structure, focused entirely on that chosen path:
+
+## Selected Story Outcome
+1–2 sentences refining the chosen path.
+
+## Narration the GM Could Say Aloud
+> A short (2–4 sentence) in-character narration for this path.
+
+## A Consequence That Matters Later
+One concrete ripple specific to this path.
+
+## Safety & Age-Appropriateness Notes
+1–3 quick bullets for this path.
+
+## Next Steps at the Table
+2–3 brief bullets for what the GM can do right now to keep the scene moving.
+
+Keep the response table-ready and under ~200 words.`;
+
+/**
+ * Request body for every co-pilot call. The UI drives a small state machine via
+ * `action`:
+ *
+ * - initial     — first pass from the situation textarea
+ * - regenerate  — new options for the same situation (needs previousOutput)
+ * - revise      — GM feedback applied to prior suggestions (needs revisionNotes)
+ * - focus       — expand one chosen option (needs selectedOption)
+ */
+const requestSchema = z
+  .object({
+    action: z.enum(["initial", "regenerate", "revise", "focus"]),
+    situation: z.string().min(1).max(4000),
+    previousOutput: z.string().max(8000).optional(),
+    revisionNotes: z.string().max(2000).optional(),
+    selectedOption: z.string().max(500).optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.action !== "initial" && !data.previousOutput?.trim()) {
+      ctx.addIssue({
+        code: "custom",
+        message: "previousOutput is required for this action",
+        path: ["previousOutput"],
+      });
+    }
+    if (data.action === "revise" && !data.revisionNotes?.trim()) {
+      ctx.addIssue({
+        code: "custom",
+        message: "revisionNotes is required for revise",
+        path: ["revisionNotes"],
+      });
+    }
+    if (data.action === "focus" && !data.selectedOption?.trim()) {
+      ctx.addIssue({
+        code: "custom",
+        message: "selectedOption is required for focus",
+        path: ["selectedOption"],
+      });
+    }
+  });
+
+export type CopilotAction = z.infer<typeof requestSchema>["action"];
+export type CopilotRequest = z.infer<typeof requestSchema>;
+
+/** Builds the user message sent to the model; each action carries different context. */
+function buildUserPrompt(data: CopilotRequest): string {
+  const situation = data.situation.trim();
+
+  switch (data.action) {
+    case "initial":
+      return `GM situation:\n\n${situation}`;
+
+    case "regenerate":
+      return `GM situation:\n\n${situation}\n\nProvide a fresh set of 2–3 different story outcomes. Do not repeat these previous suggestions:\n\n${data.previousOutput!.trim()}`;
+
+    case "revise":
+      return `GM situation:\n\n${situation}\n\nPrevious suggestions:\n\n${data.previousOutput!.trim()}\n\nGM revision request:\n\n${data.revisionNotes!.trim()}\n\nUpdate your suggestions based on the GM's feedback. Keep the same Markdown structure.`;
+
+    case "focus":
+      return `GM situation:\n\n${situation}\n\nFull suggestions (for context):\n\n${data.previousOutput!.trim()}\n\nThe GM selected this outcome to develop further:\n\n${data.selectedOption!.trim()}`;
+
+    default: {
+      const _exhaustive: never = data.action;
+      return _exhaustive;
+    }
+  }
+}
 
 /**
  * TanStack Start server function: POST /api-ish endpoint invoked from the home page.
@@ -62,16 +153,20 @@ const USER_PROMPT_PREFIX = "GM situation:\n\n";
  * To swap models, change the gateway(...) model id below.
  */
 export const generateSuggestion = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => z.object({ situation: z.string().min(1).max(4000) }).parse(input))
+  .inputValidator((input: unknown) => requestSchema.parse(input))
   .handler(async ({ data }) => {
     const key = process.env.LOVABLE_API_KEY;
     if (!key) throw new Error("Missing LOVABLE_API_KEY");
 
     const gateway = createLovableAiGatewayProvider(key);
+    // Focus responses use a different section layout, so swap in the addendum.
+    const system =
+      data.action === "focus" ? SYSTEM_PROMPT + FOCUS_SYSTEM_ADDENDUM : SYSTEM_PROMPT;
+
     const { text } = await generateText({
       model: gateway("google/gemini-3.5-flash"),
-      system: SYSTEM_PROMPT,
-      prompt: `${USER_PROMPT_PREFIX}${data.situation}`,
+      system,
+      prompt: buildUserPrompt(data),
     });
 
     return { text };
