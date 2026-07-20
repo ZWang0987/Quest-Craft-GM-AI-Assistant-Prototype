@@ -249,19 +249,30 @@ function Index() {
               )}
 
               {view === "focused" && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={loading}
-                  onClick={() => {
-                    setShowReviseForm(false);
-                    setRevisionNotes("");
-                    setView("suggestions");
-                  }}
-                >
-                  Back to all options
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={loading}
+                    onClick={() => setShowReviseForm((open) => !open)}
+                  >
+                    Revise
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={loading}
+                    onClick={() => {
+                      setShowReviseForm(false);
+                      setRevisionNotes("");
+                      setView("suggestions");
+                    }}
+                  >
+                    Back to all options
+                  </Button>
+                </div>
               )}
             </div>
 
@@ -331,24 +342,6 @@ function Index() {
                     to get selectable options.
                   </p>
                 )}
-              </div>
-            )}
-
-            {view === "focused" && !showReviseForm && (
-              <div className="space-y-3 border-t border-border pt-4">
-                <p className="text-sm text-muted-foreground">
-                  Want to adjust this path? Revise the narration, consequence, or next steps
-                  without leaving this screen.
-                </p>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={loading}
-                  onClick={() => setShowReviseForm(true)}
-                >
-                  Revise this path
-                </Button>
               </div>
             )}
 
