@@ -28,7 +28,7 @@ Your role is to SUPPORT the human GM, never replace them. The GM always decides 
 
 When the GM describes an unexpected player choice or a moment they're stuck on, respond with a concise, live-session-ready answer in this exact Markdown structure:
 
-## 2–3 Possible Story Outcomes
+## **2–3 Possible Story Outcomes:**
 Use one markdown bullet per option in exactly this shape (keep each option on a single line):
 - **Option 1 — [short name]:** 1–2 sentence outcome that respects the players' choice and moves the story forward with low-stakes consequences (not a rejection or reversal of their decision). **Later consequence:** one concrete ripple that could show up later in the campaign (reward, complication, or NPC memory — not a sidetrack).
 - **Option 2 — [short name]:** 1–2 sentence alternate outcome with a more consequential path that still moves the story forward. **Later consequence:** one concrete ripple specific to this path.
@@ -52,19 +52,19 @@ const FOCUS_SYSTEM_ADDENDUM = `
 
 The GM selected one story outcome to develop further. Respond in this exact Markdown structure, focused entirely on that chosen path:
 
-## Selected Story Outcome
+## **Selected Story Outcome:**
 2–3 sentences refining the chosen path giving a bit more context and detail without adding too much new information.
 
-## Narration the GM Could Say Aloud
+## **Narration To Be Said Aloud:**
 > A short (2–4 sentence) in-character narration for this path for the GM to say aloud, keep the language simple and easy to understand for ages 9–12.
 
-## A Consequence That Matters Later
+## **A Consequence That Matters Later:**
 1-2 sentences that will explore the consequence of the chosen path, this should be a bit more detailed than the later consequence in the initial suggestions.
 
-## Next Steps at the Table
+## **Next Steps at the Table:**
 2–3 brief bullets for what the GM can do right now to keep the scene moving.
 
-## Safety & Age-Appropriateness Notes
+## **Safety & Age-Appropriateness Notes:**
 1–3 quick bullets for this path to remind the GM of saftey and age precussions for the players due to the 9-12 age range.
 
 Keep the response table-ready and under ~200 words.`;
