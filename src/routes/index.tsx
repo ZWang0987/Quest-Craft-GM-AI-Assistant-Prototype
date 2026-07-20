@@ -15,7 +15,7 @@ import ReactMarkdown from "react-markdown";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { type CopilotAction, generateSuggestion } from "@/lib/gm-copilot.functions";
-import { parseStoryOptions } from "@/lib/gm-copilot.parse";
+import { getSuggestionsDisplayMarkdown, parseStoryOptions } from "@/lib/gm-copilot.parse";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -75,7 +75,8 @@ function Index() {
   const [error, setError] = useState<string | null>(null);
 
   const storyOptions = parseStoryOptions(suggestions);
-  const activeMarkdown = view === "focused" ? focusedOutput : suggestions;
+  const activeMarkdown =
+    view === "focused" ? focusedOutput : getSuggestionsDisplayMarkdown(suggestions);
 
   /**
    * Single entry point for all co-pilot actions. Routes to the server with the
@@ -267,6 +268,14 @@ function Index() {
                       <div className="min-w-0">
                         <p className="text-sm font-medium">{option.label}</p>
                         <p className="text-sm text-muted-foreground">{option.description}</p>
+                        {option.consequence && (
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            <span className="font-medium text-foreground">
+                              Later consequence:
+                            </span>{" "}
+                            {option.consequence}
+                          </p>
+                        )}
                       </div>
                       <Button
                         type="button"
@@ -276,7 +285,9 @@ function Index() {
                         disabled={loading}
                         onClick={() =>
                           runAction("focus", {
-                            selectedOption: `${option.label}: ${option.description}`,
+                            selectedOption: option.consequence
+                              ? `${option.label}: ${option.description} Later consequence: ${option.consequence}`
+                              : `${option.label}: ${option.description}`,
                           })
                         }
                       >
