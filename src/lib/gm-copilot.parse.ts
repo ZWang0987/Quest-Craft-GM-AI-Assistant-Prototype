@@ -32,7 +32,12 @@ const HIDDEN_SUGGESTIONS_SECTIONS = [
 
 function getStoryOutcomesSection(markdown: string): string | null {
   const sections = markdown.split(/\n(?=## )/);
-  return sections.find((section) => STORY_OUTCOMES_HEADING.test(section.trim())) ?? null;
+  return (
+    sections.find((section) => {
+      const firstLine = section.trim().split("\n")[0] ?? "";
+      return STORY_OUTCOMES_HEADING.test(firstLine);
+    }) ?? null
+  );
 }
 
 /** Pull story outcome options from the model's Markdown for per-option Select actions. */
