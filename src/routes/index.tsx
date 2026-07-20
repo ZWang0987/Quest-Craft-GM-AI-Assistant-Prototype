@@ -260,7 +260,7 @@ function Index() {
             {view === "suggestions" && (
               <p className="border-t border-border pt-4 text-sm text-muted-foreground">
                 Use what helps, skip what doesn&apos;t — you know your players best. Regenerate,
-                revise, or select a path below to develop it further.
+                revise, or select a path below to develop it further giving you narration and deeper details.
               </p>
             )}
 

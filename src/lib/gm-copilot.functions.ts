@@ -53,19 +53,19 @@ const FOCUS_SYSTEM_ADDENDUM = `
 The GM selected one story outcome to develop further. Respond in this exact Markdown structure, focused entirely on that chosen path:
 
 ## Selected Story Outcome
-1–2 sentences refining the chosen path.
+2–3 sentences refining the chosen path giving a bit more context and detail without adding too much new information.
 
 ## Narration the GM Could Say Aloud
-> A short (2–4 sentence) in-character narration for this path.
+> A short (2–4 sentence) in-character narration for this path for the GM to say aloud, keep the language simple and easy to understand for ages 9–12.
 
 ## A Consequence That Matters Later
-One concrete ripple specific to this path.
-
-## Safety & Age-Appropriateness Notes
-1–3 quick bullets for this path.
+1-2 sentences that will explore the consequence of the chosen path, this should be a bit more detailed than the later consequence in the initial suggestions.
 
 ## Next Steps at the Table
 2–3 brief bullets for what the GM can do right now to keep the scene moving.
+
+## Safety & Age-Appropriateness Notes
+1–3 quick bullets for this path to remind the GM of saftey and age precussions for the players due to the 9-12 age range.
 
 Keep the response table-ready and under ~200 words.`;
 
