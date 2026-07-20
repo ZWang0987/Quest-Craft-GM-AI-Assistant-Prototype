@@ -255,6 +255,13 @@ function Index() {
               <ReactMarkdown>{activeMarkdown}</ReactMarkdown>
             </div>
 
+            {view === "suggestions" && (
+              <p className="border-t border-border pt-4 text-sm text-muted-foreground">
+                Use what helps, skip what doesn&apos;t — you know your players best. Regenerate,
+                revise, or select a path below to develop it further.
+              </p>
+            )}
+
             {/* Parsed from suggestions Markdown — one Select button per story outcome. */}
             {view === "suggestions" && storyOptions.length > 0 && (
               <div className="space-y-3 border-t border-border pt-4">

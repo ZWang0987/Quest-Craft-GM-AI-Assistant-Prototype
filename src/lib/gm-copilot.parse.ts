@@ -15,6 +15,8 @@ export interface StoryOption {
   label: string;
 }
 
+const STORY_OUTCOMES_HEADING = /^## 2[–-]3 Possible Story Outcomes:?\s*$/i;
+
 /** Matches each bullet under "## 2–3 Possible Story Outcomes" (Option 3 may be prefixed with "(Optional)"). */
 const OPTION_LINE =
   /^-\s*(?:\(Optional\)\s+)?\*\*Option\s+(\d+)\s+—\s+([^:*]+):\*\*\s*(.+)$/;
@@ -28,17 +30,24 @@ const HIDDEN_SUGGESTIONS_SECTIONS = [
   "Safety & Age-Appropriateness Notes",
 ] as const;
 
+function getStoryOutcomesSection(markdown: string): string | null {
+  const sections = markdown.split(/\n(?=## )/);
+  return sections.find((section) => STORY_OUTCOMES_HEADING.test(section.trim())) ?? null;
+}
+
 /** Pull story outcome options from the model's Markdown for per-option Select actions. */
 export function parseStoryOptions(markdown: string): StoryOption[] {
-  const sectionMatch = markdown.match(
-    /## 2–3 Possible Story Outcomes\n([\s\S]*?)(?=\n## |$)/,
-  );
-  if (!sectionMatch) return [];
+  const section = getStoryOutcomesSection(markdown);
+  if (!section) return [];
 
   const options: StoryOption[] = [];
-  for (const line of sectionMatch[1].split("\n")) {
-    const match = line.trim().match(OPTION_LINE);
+  for (const line of section.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed === "##") continue;
+
+    const match = trimmed.match(OPTION_LINE);
     if (!match) continue;
+
     const [, num, name, body] = match;
     const trimmedName = name.trim();
     const [description = "", consequence = ""] = body.split(LATER_CONSEQUENCE_SPLIT);
