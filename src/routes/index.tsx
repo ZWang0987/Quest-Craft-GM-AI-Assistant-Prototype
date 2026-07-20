@@ -15,7 +15,7 @@ import ReactMarkdown from "react-markdown";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { type CopilotAction, generateSuggestion } from "@/lib/gm-copilot.functions";
-import { getSuggestionsDisplayMarkdown, parseStoryOptions } from "@/lib/gm-copilot.parse";
+import { formatSelectedOption, getSuggestionsDisplayMarkdown, parseStoryOptions } from "@/lib/gm-copilot.parse";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -77,6 +77,7 @@ function Index() {
   const storyOptions = parseStoryOptions(suggestions);
   const activeMarkdown =
     view === "focused" ? focusedOutput : getSuggestionsDisplayMarkdown(suggestions);
+  const showResults = view === "focused" ? !!focusedOutput.trim() : !!suggestions.trim();
 
   /**
    * Single entry point for all co-pilot actions. Routes to the server with the
@@ -201,7 +202,7 @@ function Index() {
           </div>
         )}
 
-        {activeMarkdown && (
+        {showResults && (
           <section className="mt-8 space-y-4 rounded-lg border border-border bg-card p-6">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
@@ -250,10 +251,11 @@ function Index() {
               )}
             </div>
 
-            {/* Model output is Markdown; section headings must stay in sync with SYSTEM_PROMPT. */}
-            <div className="prose prose-sm max-w-none dark:prose-invert prose-headings:mt-4 prose-headings:mb-2 prose-p:my-2 prose-ul:my-2 prose-blockquote:my-2">
-              <ReactMarkdown>{activeMarkdown}</ReactMarkdown>
-            </div>
+            {activeMarkdown && (
+              <div className="prose prose-sm max-w-none dark:prose-invert prose-headings:mt-4 prose-headings:mb-2 prose-p:my-2 prose-ul:my-2 prose-blockquote:my-2">
+                <ReactMarkdown>{activeMarkdown}</ReactMarkdown>
+              </div>
+            )}
 
             {view === "suggestions" && (
               <p className="border-t border-border pt-4 text-sm text-muted-foreground">
@@ -262,47 +264,59 @@ function Index() {
               </p>
             )}
 
-            {/* Parsed from suggestions Markdown — one Select button per story outcome. */}
-            {view === "suggestions" && storyOptions.length > 0 && (
+            {view === "suggestions" && (
               <div className="space-y-3 border-t border-border pt-4">
                 <p className="text-sm font-medium">Develop one path further</p>
-                <div className="flex flex-col gap-2">
-                  {storyOptions.map((option) => (
-                    <div
-                      key={option.number}
-                      className="flex flex-col gap-2 rounded-md border border-border bg-background p-3 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium">{option.label}</p>
-                        <p className="text-sm text-muted-foreground">{option.description}</p>
-                        {option.consequence && (
-                          <p className="mt-1 text-sm text-muted-foreground">
-                            <span className="font-medium text-foreground">
-                              Later consequence:
-                            </span>{" "}
-                            {option.consequence}
-                          </p>
-                        )}
-                      </div>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        className="shrink-0"
-                        disabled={loading}
-                        onClick={() =>
-                          runAction("focus", {
-                            selectedOption: option.consequence
-                              ? `${option.label}: ${option.description} Later consequence: ${option.consequence}`
-                              : `${option.label}: ${option.description}`,
-                          })
-                        }
+                {storyOptions.length > 0 ? (
+                  <div className="flex flex-col gap-2">
+                    {storyOptions.map((option) => (
+                      <div
+                        key={option.number}
+                        className="flex flex-col gap-2 rounded-md border border-border bg-background p-3 sm:flex-row sm:items-center sm:justify-between"
                       >
-                        Select
-                      </Button>
-                    </div>
-                  ))}
-                </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium">{option.label}</p>
+                          <p className="text-sm text-muted-foreground">{option.description}</p>
+                          {option.consequence && (
+                            <p className="mt-1 text-sm text-muted-foreground">
+                              <span className="font-medium text-foreground">
+                                Later consequence:
+                              </span>{" "}
+                              {option.consequence}
+                            </p>
+                          )}
+                        </div>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          className="shrink-0"
+                          disabled={loading}
+                          onClick={() =>
+                            runAction("focus", {
+                              selectedOption: formatSelectedOption(option),
+                            })
+                          }
+                        >
+                          Select
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Path buttons couldn&apos;t be read from this response. Try{" "}
+                    <button
+                      type="button"
+                      className="font-medium text-foreground underline-offset-2 hover:underline"
+                      disabled={loading}
+                      onClick={() => runAction("regenerate")}
+                    >
+                      Regenerate
+                    </button>{" "}
+                    to get selectable options.
+                  </p>
+                )}
               </div>
             )}
 
