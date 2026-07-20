@@ -88,6 +88,7 @@ function Index() {
     extras?: { revisionNotes?: string; selectedOption?: string },
   ) {
     if (!situation.trim() || loading) return;
+    if (action === "reviseFocus" && !focusedOutput.trim()) return;
 
     setLoading(true);
     setError(null);
@@ -97,18 +98,27 @@ function Index() {
         data: {
           action,
           situation: situation.trim(),
-          // Follow-up actions always include the last full suggestions blob.
-          previousOutput: action === "initial" ? undefined : suggestions,
+          previousOutput:
+            action === "initial"
+              ? undefined
+              : action === "reviseFocus"
+                ? focusedOutput
+                : suggestions,
           revisionNotes: extras?.revisionNotes,
-          selectedOption: extras?.selectedOption,
+          selectedOption:
+            action === "focus" || action === "reviseFocus"
+              ? (extras?.selectedOption ?? selectedOptionLabel ?? undefined)
+              : extras?.selectedOption,
         },
       });
 
-      if (action === "focus") {
-        // Keep suggestions in state so "Back to all options" can restore them.
+      if (action === "focus" || action === "reviseFocus") {
         setFocusedOutput(res.text);
-        setSelectedOptionLabel(extras?.selectedOption ?? null);
+        if (action === "focus") {
+          setSelectedOptionLabel(extras?.selectedOption ?? null);
+        }
         setView("focused");
+        setRevisionNotes("");
         setShowReviseForm(false);
       } else {
         setSuggestions(res.text);
@@ -239,15 +249,30 @@ function Index() {
               )}
 
               {view === "focused" && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={loading}
-                  onClick={() => setView("suggestions")}
-                >
-                  Back to all options
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={loading}
+                    onClick={() => setShowReviseForm((open) => !open)}
+                  >
+                    Revise
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={loading}
+                    onClick={() => {
+                      setShowReviseForm(false);
+                      setRevisionNotes("");
+                      setView("suggestions");
+                    }}
+                  >
+                    Back to all options
+                  </Button>
+                </div>
               )}
             </div>
 
@@ -320,14 +345,17 @@ function Index() {
               </div>
             )}
 
-            {/* Inline revision form — toggled by Revise, submitted as action "revise". */}
-            {view === "suggestions" && showReviseForm && (
+            {/* Inline revision form — toggled by Revise on suggestions or focused path. */}
+            {showReviseForm && (view === "suggestions" || view === "focused") && (
               <form
                 className="space-y-3 border-t border-border pt-4"
                 onSubmit={(e) => {
                   e.preventDefault();
                   if (!revisionNotes.trim()) return;
-                  void runAction("revise", { revisionNotes: revisionNotes.trim() });
+                  void runAction(view === "focused" ? "reviseFocus" : "revise", {
+                    revisionNotes: revisionNotes.trim(),
+                    selectedOption: selectedOptionLabel ?? undefined,
+                  });
                 }}
               >
                 <label htmlFor="revision" className="block text-sm font-medium">
@@ -337,7 +365,11 @@ function Index() {
                   id="revision"
                   value={revisionNotes}
                   onChange={(e) => setRevisionNotes(e.target.value)}
-                  placeholder="e.g. Make option 2 less punitive, keep the market scene moving, tone down Artemis' anger…"
+                  placeholder={
+                    view === "focused"
+                      ? "e.g. Shorten the narration, soften the consequence, add a clearer next step for the players…"
+                      : "e.g. Make option 2 less punitive, keep the market scene moving, tone down Artemis' anger…"
+                  }
                   rows={4}
                   disabled={loading}
                 />

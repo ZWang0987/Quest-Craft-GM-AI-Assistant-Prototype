@@ -73,14 +73,15 @@ Keep the response table-ready and under ~200 words.`;
  * Request body for every co-pilot call. The UI drives a small state machine via
  * `action`:
  *
- * - initial     — first pass from the situation textarea
- * - regenerate  — new options for the same situation (needs previousOutput)
- * - revise      — GM feedback applied to prior suggestions (needs revisionNotes)
- * - focus       — expand one chosen option (needs selectedOption)
+ * - initial       — first pass from the situation textarea
+ * - regenerate    — new options for the same situation (needs previousOutput)
+ * - revise        — GM feedback applied to prior suggestions (needs revisionNotes)
+ * - focus         — expand one chosen option (needs selectedOption)
+ * - reviseFocus   — GM feedback applied to focused path (needs revisionNotes, selectedOption)
  */
 const requestSchema = z
   .object({
-    action: z.enum(["initial", "regenerate", "revise", "focus"]),
+    action: z.enum(["initial", "regenerate", "revise", "focus", "reviseFocus"]),
     situation: z.string().min(1).max(4000),
     previousOutput: z.string().max(8000).optional(),
     revisionNotes: z.string().max(2000).optional(),
@@ -100,6 +101,22 @@ const requestSchema = z
         message: "revisionNotes is required for revise",
         path: ["revisionNotes"],
       });
+    }
+    if (data.action === "reviseFocus") {
+      if (!data.revisionNotes?.trim()) {
+        ctx.addIssue({
+          code: "custom",
+          message: "revisionNotes is required for reviseFocus",
+          path: ["revisionNotes"],
+        });
+      }
+      if (!data.selectedOption?.trim()) {
+        ctx.addIssue({
+          code: "custom",
+          message: "selectedOption is required for reviseFocus",
+          path: ["selectedOption"],
+        });
+      }
     }
     if (data.action === "focus" && !data.selectedOption?.trim()) {
       ctx.addIssue({
@@ -127,6 +144,9 @@ function buildUserPrompt(data: CopilotRequest): string {
     case "revise":
       return `GM situation:\n\n${situation}\n\nPrevious suggestions:\n\n${data.previousOutput!.trim()}\n\nGM revision request:\n\n${data.revisionNotes!.trim()}\n\nUpdate your suggestions based on the GM's feedback. Keep the same Markdown structure.`;
 
+    case "reviseFocus":
+      return `GM situation:\n\n${situation}\n\nThe GM selected this outcome to develop further:\n\n${data.selectedOption!.trim()}\n\nCurrent focused path content:\n\n${data.previousOutput!.trim()}\n\nGM revision request:\n\n${data.revisionNotes!.trim()}\n\nUpdate the focused path based on the GM's feedback. Keep the same Markdown structure.`;
+
     case "focus":
       return `GM situation:\n\n${situation}\n\nFull suggestions (for context):\n\n${data.previousOutput!.trim()}\n\nThe GM selected this outcome to develop further:\n\n${data.selectedOption!.trim()}`;
 
@@ -152,7 +172,9 @@ export const generateSuggestion = createServerFn({ method: "POST" })
     const gateway = createLovableAiGatewayProvider(key);
     // Focus responses use a different section layout, so swap in the addendum.
     const system =
-      data.action === "focus" ? SYSTEM_PROMPT + FOCUS_SYSTEM_ADDENDUM : SYSTEM_PROMPT;
+      data.action === "focus" || data.action === "reviseFocus"
+        ? SYSTEM_PROMPT + FOCUS_SYSTEM_ADDENDUM
+        : SYSTEM_PROMPT;
 
     const { text } = await generateText({
       model: gateway("google/gemini-3.5-flash"),
