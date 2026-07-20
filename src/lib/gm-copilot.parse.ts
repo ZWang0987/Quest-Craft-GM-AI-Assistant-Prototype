@@ -25,6 +25,7 @@ const LATER_CONSEQUENCE_SPLIT = /\s+\*\*Later consequence:\*\*\s*/i;
 const HIDDEN_SUGGESTIONS_SECTIONS = [
   "Narration the GM Could Say Aloud",
   "A Consequence That Matters Later",
+  "Safety & Age-Appropriateness Notes",
 ] as const;
 
 /** Pull story outcome options from the model's Markdown for per-option Select actions. */
