@@ -4,8 +4,9 @@
  * Session flow (state machine):
  *   describe → suggestions → (optional) focused
  *
- * - Prompt tuning: `@/lib/gm-copilot.functions.ts` (SYSTEM_PROMPT)
- * - Option parsing: `@/lib/gm-copilot.parse.ts` (Select buttons)
+ * Related files:
+ * - Prompt tuning: `@/lib/gm-copilot.functions.ts` (SYSTEM_PROMPT, server actions)
+ * - Option parsing: `@/lib/gm-copilot.parse.ts` (Select buttons, display filtering)
  * - This file: form, demo scenario, session state, Markdown rendering
  */
 import { createFileRoute } from "@tanstack/react-router";
@@ -18,6 +19,7 @@ import { type CopilotAction, generateSuggestion } from "@/lib/gm-copilot.functio
 import { formatSelectedOption, getSuggestionsDisplayMarkdown, parseStoryOptions } from "@/lib/gm-copilot.parse";
 
 export const Route = createFileRoute("/")({
+  // SEO / social preview metadata for the home page.
   head: () => ({
     meta: [
       { title: "Quest Craft GM AI Assistant Prototype" },
@@ -58,15 +60,19 @@ const EXAMPLE = `The students defeated the Stormbristle Boar. Instead of accepti
 type SessionView = "describe" | "suggestions" | "focused";
 
 function Index() {
+  // Server function wrapper — calls `generateSuggestion` in gm-copilot.functions.ts.
   const generate = useServerFn(generateSuggestion);
 
+  // --- Session state ---
   // Original table situation — kept editable and sent on every server call.
   const [situation, setSituation] = useState("");
   // Latest full suggestions (multi-option Markdown from initial / regenerate / revise).
   const [suggestions, setSuggestions] = useState("");
   // Drill-down response after the GM clicks Select on one story option.
   const [focusedOutput, setFocusedOutput] = useState("");
+  // Human-readable label for the chosen option, shown under the focused-path heading.
   const [selectedOptionLabel, setSelectedOptionLabel] = useState<string | null>(null);
+  // Which step of the session UI is currently shown.
   const [view, setView] = useState<SessionView>("describe");
   // Revise is a two-step UX: toggle form, then submit feedback to the model.
   const [showReviseForm, setShowReviseForm] = useState(false);
@@ -74,20 +80,32 @@ function Index() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // --- Derived values ---
+  // Parsed option cards for the Step 2 "Select" buttons (pure function of `suggestions`).
   const storyOptions = parseStoryOptions(suggestions);
+  // Markdown shown in the results panel: focused drill-down vs filtered suggestions.
   const activeMarkdown =
     view === "focused" ? focusedOutput : getSuggestionsDisplayMarkdown(suggestions);
+  // Gate the results card — suggestions exist on Step 2, focused output exists on Step 3.
   const showResults = view === "focused" ? !!focusedOutput.trim() : !!suggestions.trim();
 
   /**
    * Single entry point for all co-pilot actions. Routes to the server with the
    * right `action` payload, then updates session state for the next UI step.
+   *
+   * Actions:
+   * - initial      → first suggestions from the situation textarea
+   * - regenerate   → new options for the same situation (uses `suggestions` as context)
+   * - revise       → GM feedback on Step 2 options (uses `suggestions`)
+   * - focus        → expand one chosen option into narration + next steps
+   * - reviseFocus  → GM feedback on Step 3 focused path (uses `focusedOutput`)
    */
   async function runAction(
     action: CopilotAction,
     extras?: { revisionNotes?: string; selectedOption?: string },
   ) {
     if (!situation.trim() || loading) return;
+    // Guard: can't revise a focused path that hasn't been generated yet.
     if (action === "reviseFocus" && !focusedOutput.trim()) return;
 
     setLoading(true);
@@ -98,6 +116,7 @@ function Index() {
         data: {
           action,
           situation: situation.trim(),
+          // Which prior output the model should build on depends on the action.
           previousOutput:
             action === "initial"
               ? undefined
@@ -105,6 +124,7 @@ function Index() {
                 ? focusedOutput
                 : suggestions,
           revisionNotes: extras?.revisionNotes,
+          // Focus/reviseFocus need the selected option label for context.
           selectedOption:
             action === "focus" || action === "reviseFocus"
               ? (extras?.selectedOption ?? selectedOptionLabel ?? undefined)
@@ -113,6 +133,7 @@ function Index() {
       });
 
       if (action === "focus" || action === "reviseFocus") {
+        // Stay on Step 3; preserve `suggestions` so "Back to all options" is instant.
         setFocusedOutput(res.text);
         if (action === "focus") {
           setSelectedOptionLabel(extras?.selectedOption ?? null);
@@ -121,6 +142,7 @@ function Index() {
         setRevisionNotes("");
         setShowReviseForm(false);
       } else {
+        // Step 2 actions replace suggestions and clear any prior focused drill-down.
         setSuggestions(res.text);
         setFocusedOutput("");
         setSelectedOptionLabel(null);
@@ -137,13 +159,14 @@ function Index() {
     }
   }
 
+  /** Step 1 form submit — triggers the initial `initial` action. */
   async function onDescribeSubmit(e: React.FormEvent) {
     e.preventDefault();
     await runAction("initial");
   }
 
+  /** Resets follow-up state back to Step 1 but keeps the situation textarea. */
   function resetSession() {
-    // Clears follow-up state but leaves the situation textarea as-is.
     setSuggestions("");
     setFocusedOutput("");
     setSelectedOptionLabel(null);
@@ -166,6 +189,7 @@ function Index() {
           </p>
         </header>
 
+        {/* Step indicator + "New situation" reset (visible from Step 2 onward). */}
         <section className="mb-6 rounded-lg border border-border bg-card p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-sm font-medium">
@@ -181,6 +205,7 @@ function Index() {
           </div>
         </section>
 
+        {/* Step 1: situation input — always visible so the GM can edit context mid-session. */}
         <form onSubmit={onDescribeSubmit} className="space-y-3">
           <label htmlFor="situation" className="block text-sm font-medium">
             Current table situation
@@ -216,6 +241,7 @@ function Index() {
 
         {showResults && (
           <section className="mt-8 space-y-4 rounded-lg border border-border bg-card p-6">
+            {/* Results header: title, selected-path label, and view-specific action buttons. */}
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <h2 className="text-lg font-semibold">
@@ -226,7 +252,7 @@ function Index() {
                 )}
               </div>
 
-              {/* Regenerate / Revise only apply to the multi-option suggestions view. */}
+              {/* Step 2 only: ask the model for fresh options or open the revise form. */}
               {view === "suggestions" && (
                 <div className="flex flex-wrap gap-2">
                   <Button
@@ -250,6 +276,7 @@ function Index() {
                 </div>
               )}
 
+              {/* Step 3 only: revise the focused path or return to the option list (no AI call). */}
               {view === "focused" && (
                 <div className="flex flex-wrap gap-2">
                   <Button
@@ -278,19 +305,23 @@ function Index() {
               )}
             </div>
 
+            {/* Model output rendered as Markdown — headings must stay in sync with SYSTEM_PROMPT. */}
             {activeMarkdown && (
               <div className="prose prose-sm max-w-none dark:prose-invert prose-headings:mt-4 prose-headings:mb-2 prose-p:my-2 prose-ul:my-2 prose-blockquote:my-2">
                 <ReactMarkdown>{activeMarkdown}</ReactMarkdown>
               </div>
             )}
 
+            {/* Step 2 reminder — static copy, not generated by the model. */}
             {view === "suggestions" && (
               <p className="border-t border-border pt-4 text-sm text-muted-foreground">
-                Remember use what helps, and skip what doesn&apos;t — after all you are the game master and you know your players best. You can always revise, regenerate, 
-                or select a path below to develop it further giving you deeper details and next steps.
+                Remember use what helps, and skip what doesn&apos;t — after all you are the game
+                master and you know your players best. You can always revise, regenerate, or select
+                a path below to develop it further giving you deeper details and next steps.
               </p>
             )}
 
+            {/* Step 2 option cards — parsed from suggestions Markdown; Select triggers `focus`. */}
             {view === "suggestions" && (
               <div className="space-y-3 border-t border-border pt-4">
                 <p className="text-sm font-medium">Develop one chosen story path further</p>
@@ -319,6 +350,7 @@ function Index() {
                           size="sm"
                           className="shrink-0"
                           disabled={loading}
+                          // Sends the flattened option text to the server as `selectedOption`.
                           onClick={() =>
                             runAction("focus", {
                               selectedOption: formatSelectedOption(option),
@@ -347,13 +379,14 @@ function Index() {
               </div>
             )}
 
-            {/* Inline revision form — toggled by Revise on suggestions or focused path. */}
+            {/* Inline revision form — Step 2 uses `revise`, Step 3 uses `reviseFocus`. */}
             {showReviseForm && (view === "suggestions" || view === "focused") && (
               <form
                 className="space-y-3 border-t border-border pt-4"
                 onSubmit={(e) => {
                   e.preventDefault();
                   if (!revisionNotes.trim()) return;
+                  // Route to the correct revise action based on which step we're on.
                   void runAction(view === "focused" ? "reviseFocus" : "revise", {
                     revisionNotes: revisionNotes.trim(),
                     selectedOption: selectedOptionLabel ?? undefined,
