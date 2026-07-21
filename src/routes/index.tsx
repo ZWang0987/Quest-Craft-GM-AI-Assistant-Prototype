@@ -20,17 +20,17 @@ import { formatSelectedOption, getSuggestionsDisplayMarkdown, parseStoryOptions 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Quest Craft GM Co-Pilot Prototype" },
+      { title: "Quest Craft GM AI Assistant Prototype" },
       {
         name: "description",
         content:
-          "An Prototype P AI co-pilot that helps Quest Craft Game Masters respond to unexpected player choices during live tabletop role-playing sessions.",
+          "An Prototype AI assistant that helps Quest Craft Game Masters respond to unexpected player choices during live tabletop role-playing sessions.",
       },
-      { property: "og:title", content: "Quest Craft GM Co-Pilot Prototype" },
+      { property: "og:title", content: "Quest Craft GM AI Assistant Prototype" },
       {
         property: "og:description",
         content:
-          "Prototype AI-assisted suggestions for Quest Craft GMs — story outcomes, narration, and consequences for unexpected player choices.",
+          "Prototype AI assistant for Quest Craft GMs — story outcomes, narration, and consequences for unexpected player choices.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -157,7 +157,7 @@ function Index() {
     <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto max-w-3xl px-6 py-10">
         <header className="mb-8">
-          <h1 className="text-3xl font-bold tracking-tight">Quest Craft GM Co-Pilot Prototype</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Quest Craft GM AI Assistant Prototype</h1>
           <p className="mt-2 text-sm text-muted-foreground">
           This is a prototype AI assistant for Quest Craft Game Masters. Below, you can describe your own table situation or 
           load a demo scenario where students defeated the Stormbristle Boar. After this, 2–3 possible story options will be 
@@ -183,13 +183,13 @@ function Index() {
 
         <form onSubmit={onDescribeSubmit} className="space-y-3">
           <label htmlFor="situation" className="block text-sm font-medium">
-            GM situation
+            Current table situation
           </label>
           <Textarea
             id="situation"
             value={situation}
             onChange={(e) => setSituation(e.target.value)}
-            placeholder="Describe what just happened at the table…"
+            placeholder="Describe the current table situation or load a demo scenario..."
             rows={7}
             disabled={loading}
           />
@@ -286,14 +286,14 @@ function Index() {
 
             {view === "suggestions" && (
               <p className="border-t border-border pt-4 text-sm text-muted-foreground">
-                Use what helps, skip what doesn&apos;t — you know your players best. Regenerate,
-                revise, or select a path below to develop it further giving you narration and deeper details.
+                Remember use what helps, and skip what doesn&apos;t — after all you are the game master and you know your players best. You can always revise, regenerate, 
+                or select a path below to develop it further giving you deeper details and next steps.
               </p>
             )}
 
             {view === "suggestions" && (
               <div className="space-y-3 border-t border-border pt-4">
-                <p className="text-sm font-medium">Develop one path further</p>
+                <p className="text-sm font-medium">Develop one chosen story path further</p>
                 {storyOptions.length > 0 ? (
                   <div className="flex flex-col gap-2">
                     {storyOptions.map((option) => (
@@ -369,8 +369,8 @@ function Index() {
                   onChange={(e) => setRevisionNotes(e.target.value)}
                   placeholder={
                     view === "focused"
-                      ? "e.g. Shorten the narration, soften the consequence, add a clearer next step for the players…"
-                      : "e.g. Make option 2 less punitive, keep the market scene moving, tone down Artemis' anger…"
+                      ? "e.g. Shorten the narration and soften the consequence while keeping the rest of the story the same"
+                      : "e.g. Make option 2 more consequential and bring Artemis into the story more"
                   }
                   rows={4}
                   disabled={loading}
