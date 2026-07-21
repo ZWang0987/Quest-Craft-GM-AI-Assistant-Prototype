@@ -219,7 +219,7 @@ function Index() {
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <h2 className="text-lg font-semibold">
-                  {view === "focused" ? "Focused path" : "Suggestions"}
+                  {view === "focused" ? "Selected story path" : "Suggestions"}
                 </h2>
                 {view === "focused" && selectedOptionLabel && (
                   <p className="mt-1 text-sm text-muted-foreground">{selectedOptionLabel}</p>
