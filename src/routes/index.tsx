@@ -222,7 +222,7 @@ function Index() {
                   {view === "focused" ? "Focused path" : "Suggestions"}
                 </h2>
                 {view === "focused" && selectedOptionLabel && (
-                  <p className="mt-1 text-sm text-muted-foreground">{"selected story path:"}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{"Selected story path: " + selectedOptionLabel}</p>
                 )}
               </div>
 
