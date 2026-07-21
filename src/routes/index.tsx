@@ -20,17 +20,17 @@ import { formatSelectedOption, getSuggestionsDisplayMarkdown, parseStoryOptions 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Quest Craft GM Co-Pilot" },
+      { title: "Quest Craft GM Co-Pilot Prototype" },
       {
         name: "description",
         content:
-          "An AI co-pilot that helps Quest Craft Game Masters respond to unexpected player choices during live tabletop role-playing sessions.",
+          "An Prototype P AI co-pilot that helps Quest Craft Game Masters respond to unexpected player choices during live tabletop role-playing sessions.",
       },
-      { property: "og:title", content: "Quest Craft GM Co-Pilot" },
+      { property: "og:title", content: "Quest Craft GM Co-Pilot Prototype" },
       {
         property: "og:description",
         content:
-          "AI-assisted suggestions for Quest Craft GMs — story outcomes, narration, and consequences for unexpected player choices.",
+          "Prototype AI-assisted suggestions for Quest Craft GMs — story outcomes, narration, and consequences for unexpected player choices.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -40,7 +40,7 @@ export const Route = createFileRoute("/")({
 });
 
 /**
- * Demo scenario for "Load demo scenario". Should mirror what a real GM would type:
+ * Demo scenario input for "Load demo scenario". Should mirror what a real GM would type:
  * context, player choice, and what they need help with.
  *
  * Update this when you add Quest Craft modules, settings, or example age bands.
@@ -157,10 +157,12 @@ function Index() {
     <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto max-w-3xl px-6 py-10">
         <header className="mb-8">
-          <h1 className="text-3xl font-bold tracking-tight">Quest Craft GM Co-Pilot</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Quest Craft GM Co-Pilot Prototype</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Describe your table situation, review suggestions, then regenerate, revise, or
-            develop one story path further.
+          This is a prototype AI assistant for Quest Craft Game Masters. Below, you can describe your own table situation or 
+          load a demo scenario where students defeated the Stormbristle Boar. After this, 2–3 possible story options will be 
+          displayed. From these, you can revise any of the story suggestions, regenerate the story options, or select one of the 
+          options to develop further as your chosen story path.
           </p>
         </header>
 
@@ -168,8 +170,8 @@ function Index() {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-sm font-medium">
               {view === "describe" && "Step 1 — Describe the situation"}
-              {view === "suggestions" && "Step 2 — Review suggestions"}
-              {view === "focused" && "Step 3 — Develop one path"}
+              {view === "suggestions" && "Step 2 — Revise, regenerate, or select a story path"}
+              {view === "focused" && "Step 3 — Revise or present the chosen story path"}
             </p>
             {view !== "describe" && (
               <Button type="button" variant="ghost" size="sm" onClick={resetSession}>
