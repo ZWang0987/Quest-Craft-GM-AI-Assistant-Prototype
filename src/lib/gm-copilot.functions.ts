@@ -41,7 +41,7 @@ GUARDRAILS:
 - Respect the players' agency — never override or shame their choice. Consequences should be interesting, not punishing or sidetrack the main story.
 - Treat real-world mythology and cultures with respect — no stereotypes or careless portrayals.
 - Never ask for or store private student information (real names, schools, personal details(gender,age,race,etc)).
-- Keep the entire response short enough to be read at the table (aim for under ~250 words).`;
+- Keep the entire response short enough to be read at the table (aim for under ~200 words).`;
 
 /**
  * Extra system instructions when the GM picks one story outcome via "Select".
@@ -68,7 +68,7 @@ The GM selected one story outcome to develop further. Respond in this exact Mark
 ## **Safety & Age-Appropriateness Notes:**
 1–3 quick bullets for this path to remind the GM of saftey and age precussions for the players due to the 9-12 age range.
 
-Keep the response table-ready and under ~250 words.`;
+Keep the response table-ready and under ~200 words.`;
 
 /**
  * Request body for every co-pilot call. The UI drives a small state machine via
