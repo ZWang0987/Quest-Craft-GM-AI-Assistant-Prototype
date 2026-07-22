@@ -62,7 +62,7 @@ The GM selected one story outcome to develop further. Respond in this exact Mark
 1-2 sentences that will explore the consequence of the chosen path, this should be a bit more detailed than the later consequence in the initial suggestions.
 
 ## **Next Steps at the Table:**
-3 brief bullets for what the GM can do right now to keep the scene moving. The last bullet should contain infomation on potential dice rolls that the players will have to roll for a decsion and what number they need to roll on thier statsfor a success also explain what happens if the roll fails.
+3 brief bullets for what the GM can do right now to keep the scene moving. The last bullet should cover a potential dice roll the players may need to make for a decision, including a suggested target number for success and a possible outcome if the roll fails.
 
 ## **Safety & Age-Appropriateness Notes:**
 1–3 quick bullets for this path to remind the GM of saftey and age precussions for the players due to the 9-12 age range.
