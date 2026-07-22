@@ -47,7 +47,6 @@ GUARDRAILS:
  * Extra system instructions when the GM picks one story outcome via "Select".
  * Uses a different Markdown shape (no multi-option list) so the UI can show a
  * drill-down view without confusing it with the main suggestions screen.
- * I think lovable is broken
  */
 const FOCUS_SYSTEM_ADDENDUM = `
 
