@@ -26,7 +26,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "An Prototype AI assistant that helps Quest Craft Game Masters respond to unexpected player choices during live tabletop role-playing sessions.",
+          "A Prototype AI assistant that helps Quest Craft Game Masters respond to unexpected player choices during live tabletop role-playing sessions.",
       },
       { property: "og:title", content: "Quest Craft GM AI Assistant Prototype" },
       {
